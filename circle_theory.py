@@ -19,7 +19,7 @@ def event_to_dict(me: midi.MidiEvent) -> Dict[str, int | None]:
     return {
         "status": status,
         "note": int(me.note),
-        "delta": int(me.delta_us),
+        "delta": me.delta_us / 1_000_000,
     }
 
 
@@ -104,6 +104,10 @@ def midi_note_to_color(note):
     # Return RGB tuple (values 0-1) and the note name
     return (r, g, b), note_names[semitone]
 
+def format_time(seconds):
+    minutes = int(seconds // 60)
+    secs = int(seconds % 60)
+    return f"{minutes:02d}:{secs:02d}"
 
 def plot_segments(df: pd.DataFrame):
     """Plots the MIDI note segments using Matplotlib with an animation slider and buttons."""
@@ -192,6 +196,7 @@ def plot_segments(df: pd.DataFrame):
     # Update function for slider
     def update(val):
         time_t = slider.val
+        slider.label.set_text(f"Time ({format_time(time_t)})")
         if not df.empty:
             for i, row in df.iterrows():
                 if row['start_time'] <= time_t:
