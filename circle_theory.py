@@ -109,24 +109,38 @@ def plot_segments(df: pd.DataFrame):
     # Track which notes have been added to the legend
     legend_added = set()
 
-    # Plot each segment as a single line segment
+    # Plot each segment as an arrow
     for _, row in df.iterrows():
         note_label = row["note_name"]
 
+        arrowprops = dict(arrowstyle="->", color=row["color"], lw=2)
+
+        ax.annotate(
+            "",
+            xy=(row["x2"], row["y2"]),
+            xytext=(row["x1"], row["y1"]),
+            arrowprops=arrowprops,
+        )
+
         # Only add a label for the legend for the first occurrence of a note
         if note_label not in legend_added:
-            ax.plot(
-                [row["x1"], row["x2"]],
-                [row["y1"], row["y2"]],
-                color=row["color"],
-                linewidth=2,
-                label=note_label,
-            )
+            # Create a proxy artist for the legend
+            ax.plot([], [], color=row["color"], lw=2, label=note_label)
             legend_added.add(note_label)
-        else:
-            ax.plot(
-                [row["x1"], row["x2"]], [row["y1"], row["y2"]], color=row["color"], linewidth=2
-            )
+
+    # Manually set axis limits
+    if not df.empty:
+        x_min = min(df['x1'].min(), df['x2'].min())
+        x_max = max(df['x1'].max(), df['x2'].max())
+        y_min = min(df['y1'].min(), df['y2'].min())
+        y_max = max(df['y1'].max(), df['y2'].max())
+        
+        # Add some padding
+        x_padding = (x_max - x_min) * 0.1 if x_max > x_min else 1
+        y_padding = (y_max - y_min) * 0.1 if y_max > y_min else 1
+        
+        ax.set_xlim(x_min - x_padding, x_max + x_padding)
+        ax.set_ylim(y_min - y_padding, y_max + y_padding)
 
     # Layout adjustments
     ax.set_title("Line Segments Colored by MIDI Note")
