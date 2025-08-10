@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import filedialog
 
-def event_to_dict(me: midi.MidiEvent) -> Dict[str, int]:
+def event_to_dict(me: midi.MidiEvent) -> Dict[str, int | None]:
     if (me.status == midi.NOTE_OFF) or (me.status == midi.NOTE_ON) and (me.velocity == 0):
         status = 0
     elif me.status == midi.NOTE_ON:
@@ -16,8 +16,8 @@ def event_to_dict(me: midi.MidiEvent) -> Dict[str, int]:
         status = None
     return {
         "status": status,
-        "note": me.note,
-        "delta": me.delta_us,
+        "note": int(me.note),
+        "delta": int(me.delta_us),
     }
 
 
@@ -54,54 +54,33 @@ def list_to_point(l: List[Dict[str,float]]):
                 "time": 0,
             })
         else :
-            if event["status"] == 1:
-                prev_point = point_list[-1]
-                prev_rad = note_to_rad(prev_point["note"])
-                prev_x = prev_point["x"]
-                prev_y = prev_point["y"]
-                point_list.append({
-                    "status": event["status"],
-                    "note": event["note"],
-                    "x": np.cos(prev_rad)*event["delta"] + prev_x,
-                    "y": np.sin(prev_rad)*event["delta"] + prev_y,
-                    "time": event["time"],
-                })
-            else:
-                for inv in range(-1, -len(point_list)-1, -1):
-                    if point_list[inv]["note"] == event["note"]:
-                        start_event = point_list[inv]
-                        prev_x = start_event["x"]
-                        prev_y = start_event["y"]
-                        rad = note_to_rad(event["note"])
-                        delta = event["time"] - start_event["time"]
-                        point_list.append({
-                            "status": event["status"],
-                            "note": event["note"],
-                            "x": np.cos(rad)*delta + prev_x,
-                            "y": np.sin(rad)*delta + prev_y,
-                            "time": event["time"],
-                        })
-                        break
+            prev_point = point_list[-1]
+            rad = note_to_rad(prev_point["note"])
+            prev_x = prev_point["x"]
+            prev_y = prev_point["y"]
+            point_list.append({
+                "status": event["status"],
+                "note": event["note"],
+                "x": np.cos(rad)*event["delta"] + prev_x,
+                "y": np.sin(rad)*event["delta"] + prev_y,
+                "time": event["time"],
+            })
     return point_list
 
 
-def point_to_segment(l):
+def path_to_segments(l):
     l_segments = []
-    for i in range(len(l)):
+    for i in range(len(l)-1):
         point = l[i]
-        if point["status"] == 1:
-            for k in range(i+1,len(l)):
-                end_point=l[k]
-                if (point["note"] == end_point["note"]) and end_point["status"] == 0:
-                    l_segments.append({
-                        "note": point["note"],
-                        "x1": point["x"],
-                        "y1": point["y"],
-                        "x2": end_point["x"],
-                        "y2": end_point["y"],
-                        "lenght": end_point["time"] - point["time"],
-                    })
-                    break
+        end_point=l[i+1]
+        l_segments.append({
+            "note": point["note"],
+            "x1": point["x"],
+            "y1": point["y"],
+            "x2": end_point["x"],
+            "y2": end_point["y"],
+            "lenght": end_point["time"] - point["time"],
+        })
     return l_segments
 
 
@@ -132,7 +111,7 @@ def plot_segments(df: pd.DataFrame):
 
     # Plot each segment as a single line segment
     for _, row in df.iterrows():
-        note_label = f'{row["note_name"]}{row["note"] // 12 - 1}'
+        note_label = row["note_name"]
 
         # Only add a label for the legend for the first occurrence of a note
         if note_label not in legend_added:
@@ -177,7 +156,7 @@ def main():
         return
     midi_file = midi.MidiFile(midi_path, buffer_size=0)
     list_dic = midi_to_list(midi_file)
-    l_segment = point_to_segment(list_to_point(delta_to_time(list_dic)))
+    l_segment = path_to_segments(list_to_point(delta_to_time(list_dic)))
     df = pd.DataFrame(l_segment)
 
     # Assign colors and note names
